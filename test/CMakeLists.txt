@@ -118,7 +118,7 @@ add_compute_test("iterator.transform_iterator" test_transform_iterator.cpp)
 add_compute_test("iterator.zip_iterator" test_zip_iterator.cpp)
 
 add_compute_test("random.mersenne_twister" test_mersenne_twister.cpp)
-
+add_compute_test("random.threefry" test_threefry.cpp)
 add_compute_test("types.builtin" test_types.cpp)
 add_compute_test("types.complex" test_complex.cpp)
 add_compute_test("types.pair" test_pair.cpp)
