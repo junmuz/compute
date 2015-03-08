@@ -123,7 +123,7 @@ private:
                 "typedef struct r123array2x32 threefry2x32_ctr_t;\n"
                 "typedef struct r123array2x32 threefry2x32_key_t;\n"
 
-                "threefry2x32_ctr_t threefry2x32_R(unsigned int Nrounds, threefry2x32ctr_t in, threefry2x32_key_t k))\n"
+                "threefry2x32_ctr_t threefry2x32_R(unsigned int Nrounds, threefry2x32_ctr_t in, threefry2x32_key_t k))\n"
                 "{\n"
                 "    threefry2x32_ctr_t X;\n"
                 "    uint32_t ks[3];\n"
@@ -211,7 +211,7 @@ private:
                 "    return X;\n"
                 "}\n";
 
-                "__kernel void generate_rng(threefry2x32ctr_t in, threefry2x32_key_t k) {\n"
+                "__kernel void generate_rng(threefry2x32_ctr_t in, threefry2x32_key_t k) {\n"
                 "    threefry2x32_R(20, in, k);\n"
                 "}\n"
 
@@ -219,6 +219,13 @@ private:
 
             cache->insert(cache_key, m_program);
         }
+    }
+
+    void generate(command_queue &queue, threefry2x32_ctr_t ctr_val, threefry2x32_key_t key_val) {
+        kernel rng_kernel = m_program.create_kernel("generate_rng");
+        rng_kernel.set_arg(ctr_val);
+        rng_kernel.set_arg(key_val);
+        queue.enqueue_task(rng_kernel);
     }
 
 private:
