@@ -112,13 +112,13 @@ private:
                 "    R_32x2_7_0=24\n"
                 "}\n"
 
-                "static inline uint32_t RotL_32(uint32_t x, unsigned int N)\n"
+                "static inline uint RotL_32(uint x, uint N)\n"
                 "{\n"
                 "    return (x << (N & 31)) | (x >> ((32-N) & 31));\n"
                 "}\n"
                 
                 "struct r123array2x32 {\n"
-                "    uint32_t *v;\n"
+                "    uint v[2];\n"
                 "}\n"
                 "typedef struct r123array2x32 threefry2x32_ctr_t;\n"
                 "typedef struct r123array2x32 threefry2x32_key_t;\n"
@@ -126,7 +126,7 @@ private:
                 "threefry2x32_ctr_t threefry2x32_R(unsigned int Nrounds, threefry2x32_ctr_t in, threefry2x32_key_t k))\n"
                 "{\n"
                 "    threefry2x32_ctr_t X;\n"
-                "    uint32_t ks[3];\n"
+                "    uint ks[3];\n"
                 "    int  i; /* avoid size_t to avoid need for stddef.h */\n"
                 "    assert(Nrounds<=32);\n"
                 "    ks[2] =  SKEIN_KS_PARITY_32;\n"
@@ -209,15 +209,18 @@ private:
                 "        X.v[1] += 8;\n"
                 "    }\n"
                 "    return X;\n"
-                "}\n";
-
-                "__kernel void generate_rng(uint32_t *ctr, uint32_t *key) {\n"
-                "    threefry2x32_ctr_t in;\n"
-                "    in.v = ctr;\n"
-                "    threefry2x32_key_t k;\n"
-                "    k.v = key;\n"
-                "    threefry2x32_R(20, in, k);\n"
                 "}\n"
+                "__kernel void generate_rng(__global uint *ctr, __global uint *key) {\n"
+                "    threefry2x32_ctr_t in;\n"
+                "    in.v[0] = ctr[0];\n"
+                "    in.v[1] = ctr[1];\n"
+                "    threefry2x32_key_t k;\n"
+                "    k.v[0] = key[0];\n"
+                "    k.v[1] = key[1];\n"
+                "    in = threefry2x32_R(20, in, k);\n"
+                "    ctr[0] = in.v[0];\n"
+                "    ctr[1] = in.v[1];\n"
+                "}\n";
 
             m_program = program::build_with_source(source, m_context);
 
