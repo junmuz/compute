@@ -86,15 +86,6 @@ public:
     {
     }
 
-    template<class OutputIterator>
-    void generate(command_queue &queue, OutputIterator first_ctr, OutputIterator last_ctr, OutputIterator first_key, OutputIterator last_key) {
-        kernel rng_kernel = m_program.create_kernel("generate_rng");
-        rng_kernel.set_arg(0, first_ctr.get_buffer());
-        rng_kernel.set_arg(1, first_key.get_buffer());
-        queue.enqueue_1d_range_kernel(rng_kernel, 0, 2, 0);
-    }
-
-
 private:
     /// \internal_
     void load_program()
@@ -107,6 +98,7 @@ private:
         m_program = cache->get(cache_key);
         if(!m_program.get()){
             const char source[] =
+
                 "#define THREEFRY2x32_DEFAULT_ROUNDS 20\n"
                 "#define SKEIN_KS_PARITY_32 0x1BD11BDA\n"
 
@@ -119,25 +111,24 @@ private:
                 "    R_32x2_5_0=29,\n"
                 "    R_32x2_6_0=16,\n"
                 "    R_32x2_7_0=24\n"
-                "}\n"
+                "};\n"
 
-                "static inline uint RotL_32(uint x, uint N)\n"
+                "static uint RotL_32(uint x, uint N)\n"
                 "{\n"
                 "    return (x << (N & 31)) | (x >> ((32-N) & 31));\n"
                 "}\n"
                 
                 "struct r123array2x32 {\n"
                 "    uint v[2];\n"
-                "}\n"
+                "};\n"
                 "typedef struct r123array2x32 threefry2x32_ctr_t;\n"
                 "typedef struct r123array2x32 threefry2x32_key_t;\n"
 
-                "threefry2x32_ctr_t threefry2x32_R(unsigned int Nrounds, threefry2x32_ctr_t in, threefry2x32_key_t k))\n"
+                "threefry2x32_ctr_t threefry2x32_R(unsigned int Nrounds, threefry2x32_ctr_t in, threefry2x32_key_t k)\n"
                 "{\n"
                 "    threefry2x32_ctr_t X;\n"
                 "    uint ks[3];\n"
-                "    int  i; /* avoid size_t to avoid need for stddef.h */\n"
-                "    assert(Nrounds<=32);\n"
+                "    uint  i; \n"
                 "    ks[2] =  SKEIN_KS_PARITY_32;\n"
                 "    for (i=0;i < 2; i++) {\n"
                 "        ks[i] = k.v[i];\n"
@@ -150,16 +141,14 @@ private:
                 "    if(Nrounds>2){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_2_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>3){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_3_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>3){\n"
-                "        /* InjectKey(r=1) */\n"
                 "        X.v[0] += ks[1]; X.v[1] += ks[2];\n"
-                "        X.v[1] += 1;     /* X.v[2-1] += r  */\n"
+                "        X.v[1] += 1;\n"
                 "    }\n"
                 "    if(Nrounds>4){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_4_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>5){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_5_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>6){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_6_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>7){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_7_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>7){\n"
-                "        /* InjectKey(r=2) */\n"
                 "        X.v[0] += ks[2]; X.v[1] += ks[0];\n"
                 "        X.v[1] += 2;\n"
                 "    }\n"
@@ -168,7 +157,6 @@ private:
                 "    if(Nrounds>10){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_2_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>11){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_3_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>11){\n"
-                "        /* InjectKey(r=3) */\n"
                 "        X.v[0] += ks[0]; X.v[1] += ks[1];\n"
                 "        X.v[1] += 3;\n"
                 "    }\n"
@@ -177,7 +165,6 @@ private:
                 "    if(Nrounds>14){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_6_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>15){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_7_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>15){\n"
-                "        /* InjectKey(r=4) */\n"
                 "        X.v[0] += ks[1]; X.v[1] += ks[2];\n"
                 "        X.v[1] += 4;\n"
                 "    }\n"
@@ -186,7 +173,6 @@ private:
                 "    if(Nrounds>18){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_2_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>19){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_3_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>19){\n"
-                "        /* InjectKey(r=5) */\n"
                 "        X.v[0] += ks[2]; X.v[1] += ks[0];\n"
                 "        X.v[1] += 5;\n"
                 "    }\n"
@@ -195,7 +181,6 @@ private:
                 "    if(Nrounds>22){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_6_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>23){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_7_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>23){\n"
-                "        /* InjectKey(r=6) */\n"
                 "        X.v[0] += ks[0]; X.v[1] += ks[1];\n"
                 "        X.v[1] += 6;\n"
                 "    }\n"
@@ -204,7 +189,6 @@ private:
                 "    if(Nrounds>26){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_2_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>27){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_3_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>27){\n"
-                "        /* InjectKey(r=7) */\n"
                 "        X.v[0] += ks[1]; X.v[1] += ks[2];\n"
                 "        X.v[1] += 7;\n"
                 "    }\n"
@@ -213,12 +197,12 @@ private:
                 "    if(Nrounds>30){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_6_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>31){  X.v[0] += X.v[1]; X.v[1] = RotL_32(X.v[1],R_32x2_7_0); X.v[1] ^= X.v[0]; }\n"
                 "    if(Nrounds>31){\n"
-                "    /* InjectKey(r=8) */\n"
                 "        X.v[0] += ks[2]; X.v[1] += ks[0];\n"
                 "        X.v[1] += 8;\n"
                 "    }\n"
                 "    return X;\n"
                 "}\n"
+
                 "__kernel void generate_rng(__global uint *ctr, __global uint *key) {\n"
                 "    threefry2x32_ctr_t in;\n"
                 "    in.v[0] = ctr[0];\n"
@@ -235,6 +219,15 @@ private:
 
             cache->insert(cache_key, m_program);
         }
+    }
+
+public:
+    template<class OutputIterator>
+    void generate(command_queue &queue, OutputIterator first_ctr, OutputIterator last_ctr, OutputIterator first_key, OutputIterator last_key) {
+        kernel rng_kernel = m_program.create_kernel("generate_rng");
+        rng_kernel.set_arg(0, first_ctr.get_buffer());
+        rng_kernel.set_arg(1, first_key.get_buffer());
+        queue.enqueue_1d_range_kernel(rng_kernel, 0, 2, 0);
     }
 
 private:
