@@ -86,6 +86,14 @@ public:
     {
     }
 
+    void generate(command_queue &queue, uint32_t *ctr_val, uint32_t *key_val) {
+        kernel rng_kernel = m_program.create_kernel("generate_rng");
+        rng_kernel.set_arg(0, ctr_val);
+        rng_kernel.set_arg(1, key_val);
+        queue.enqueue_1d_range_kernel(rng_kernel, 0, 1, 0);
+    }
+
+
 private:
     /// \internal_
     void load_program()
@@ -226,13 +234,6 @@ private:
 
             cache->insert(cache_key, m_program);
         }
-    }
-
-    void generate(command_queue &queue, uint32_t *ctr_val, uint32_t *key_val) {
-        kernel rng_kernel = m_program.create_kernel("generate_rng");
-        rng_kernel.set_arg(0, ctr_val);
-        rng_kernel.set_arg(1, key_val);
-        queue.enqueue_1d_range_kernel(rng_kernel, , 1, 0);
     }
 
 private:
