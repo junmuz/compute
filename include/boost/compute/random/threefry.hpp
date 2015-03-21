@@ -86,11 +86,12 @@ public:
     {
     }
 
-    void generate(command_queue &queue, uint32_t *ctr_val, uint32_t *key_val) {
+    template<class OutputIterator>
+    void generate(command_queue &queue, OutputIterator first_ctr, OutputIterator last_ctr, OutputIterator first_key, OutputIterator last_key) {
         kernel rng_kernel = m_program.create_kernel("generate_rng");
-        rng_kernel.set_arg(0, ctr_val);
-        rng_kernel.set_arg(1, key_val);
-        queue.enqueue_1d_range_kernel(rng_kernel, 0, 1, 0);
+        rng_kernel.set_arg(0, first_ctr.get_buffer());
+        rng_kernel.set_arg(1, first_key.get_buffer());
+        queue.enqueue_1d_range_kernel(rng_kernel, 0, 2, 0);
     }
 
 
