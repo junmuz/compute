@@ -203,16 +203,18 @@ private:
                 "    return X;\n"
                 "}\n"
 
-                "__kernel void generate_rng(__global uint *ctr, __global uint *key) {\n"
+                "__kernel void generate_rng(__global uint *ctr, __global uint *key, const uint size) {\n"
                 "    threefry2x32_ctr_t in;\n"
-                "    in.v[0] = ctr[0];\n"
-                "    in.v[1] = ctr[1];\n"
                 "    threefry2x32_key_t k;\n"
-                "    k.v[0] = key[0];\n"
-                "    k.v[1] = key[1];\n"
-                "    in = threefry2x32_R(20, in, k);\n"
-                "    ctr[0] = in.v[0];\n"
-                "    ctr[1] = in.v[1];\n"
+                "    for(uint i = 0; i < size; i+=2) {\n"
+                "        in.v[0] = ctr[i];\n"
+                "        in.v[1] = ctr[i+1];\n"
+                "        k.v[0] = key[i];\n"
+                "        k.v[1] = key[i+1];\n"
+                "        in = threefry2x32_R(20, in, k);\n"
+                "        ctr[i] = in.v[0];\n"
+                "        ctr[i+1] = in.v[1];\n"
+                "    }\n"
                 "}\n";
 
             m_program = program::build_with_source(source, m_context);
@@ -224,10 +226,16 @@ private:
 public:
     template<class OutputIterator>
     void generate(command_queue &queue, OutputIterator first_ctr, OutputIterator last_ctr, OutputIterator first_key, OutputIterator last_key) {
+        const size_t size_ctr = detail::iterator_range_size(first_ctr, last_ctr);
+        const size_t size_key = detail::iterator_range_size(first_key, last_key);
+        if(!size_ctr || !size_key || (size_ctr != size_key)) {
+            return;
+        }
         kernel rng_kernel = m_program.create_kernel("generate_rng");
         rng_kernel.set_arg(0, first_ctr.get_buffer());
         rng_kernel.set_arg(1, first_key.get_buffer());
-        queue.enqueue_1d_range_kernel(rng_kernel, 0, 2, 0);
+        rng_kernel.set_arg(2, static_cast<const uint_>(size_ctr));
+        queue.enqueue_1d_range_kernel(rng_kernel, 0, 1, 0);
     }
 
 private:
