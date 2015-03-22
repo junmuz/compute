@@ -1,46 +1,98 @@
-/* This file presents unit test for the Threefry Random Number Generator */
+//---------------------------------------------------------------------------//
+// Copyright (c) 2013 Muhammad Junaid Muzammil <mjunaidmuzammil@gmail.com>
+//
+// Distributed under the Boost Software License, Version 1.0
+// See accompanying file LICENSE_1_0.txt or copy at
+// http://www.boost.org/LICENSE_1_0.txt
+//
+// See http://kylelutz.github.com/compute for more information.
+//---------------------------------------------------------------------------//
 
-#include <iostream>
-#include <vector>
-#include <boost/compute/random/threefry.h>
-#include <cassert>
-int main(int argc, char **argv){
-    int i;
-    std::vector <unsigned long long> test_result(20);
-    test_result.push_back(0xe7f9b3eaf8551101); 
-    test_result.push_back(0x4673e4eba167c2c0); 
-    test_result.push_back(0xdf218d5b1b97cbd2); 
-    test_result.push_back(0xa0bd12b358f78559);
-    test_result.push_back(0xb977e699a63dd0b4); 
-    test_result.push_back(0x139d5e64a9653714);
-    test_result.push_back(0x71a716d3adbd860d);
-    test_result.push_back(0x2b412fcc92ef8ccb);
-    test_result.push_back(0x3b3f8d195fe87ffa);
-    test_result.push_back(0xf35b68dc70b3ed3);
-    test_result.push_back(0xa0ad4ea90a6ac666);
-    test_result.push_back(0x1139c7b4bc117ca1);
-    test_result.push_back(0xcc0f1d607e20f245);
-    test_result.push_back(0x6ccd1ec7129e9eb5);
-    test_result.push_back(0xa2a79496dfa47352);
-    test_result.push_back(0x65ca10886e2566df);
-    test_result.push_back(0xed553e57f10b3b42);
-    test_result.push_back(0xbaf51c00fb3a5957);
-    test_result.push_back(0x6f81ed42f350084d);
-    test_result.push_back(0xc2b6e3a8c2c69865);
-    threefry2x64_ctr_t  ctr = {{2,0}};
-    threefry2x64_key_t key = {{0x0,0x0}};
-    for(i=0; i<10; ++i){
-        ctr.v[0] = i;
-        std::cout << "Running Test " << i + 1 << std::endl;
-        {
-          threefry2x64_ctr_t rand = threefry2x64(ctr, key);
-          assert(rand.v[0] == test_result.back());
-          test_result.pop_back();
-          assert(rand.v[1] == test_result.back());
-          test_result.pop_back();
-        }
+#define BOOST_TEST_MODULE TestThreefry
+#include <boost/test/unit_test.hpp>
+
+#include <boost/compute/random/threefry.hpp>
+#include <boost/compute/container/vector.hpp>
+
+#include "check_macros.hpp"
+#include "context_setup.hpp"
+
+BOOST_AUTO_TEST_CASE(generate_uint)
+{
+    using boost::compute::uint_;
+
+    boost::compute::threefry rng(queue);
+
+    boost::compute::vector<uint_> vector(10, context);
+
+    rng.generate(vector.begin(), vector.end(), queue);
+
+
+    using boost::compute::uint_;
+
+    boost::compute::random::threefry rng(queue);
+
+    boost::compute::vector<uint_> vector_ctr(20, context);
+
+    boost::compute::vector<uint_> vector_key(20, context);
+
+    uint32_t ctr[20];
+    uint32_t key[20];
+    for(int i = 0; i < 10; i++) {
+        ctr[i*2] = i;
+        ctr[i*2+1] = 0;
+        key[i*2] = 0;
+        key[i*2+1] = 0;
     }
-    std::cout << "All Tests Successfully Passed" << std::endl;
-    return 0;
+
+    boost::compute::copy(ctr, ctr+20, vector_ctr.begin(), queue);
+    boost::compute::copy(key, key+20, vector_key.begin(), queue);
+
+    rng.generate(queue, vector_ctr.begin(), vector_ctr.end(), vector_key.begin(), vector_key.end());
+    CHECK_RANGE_EQUAL(
+        uint_, 20, vector,
+        (uint_(0x6b200159),
+         uint_(0x99ba4efe),
+         uint_(0x508efb2c),
+         uint_(0xc0de3f32),
+         uint_(0x64a626ec),
+         uint_(0xfc15e573),
+         uint_(0xb8abc4d1),
+         uint_(0x537eb86),
+         uint_(0xac6dc2bb),
+         uint_(0xa7adb3c3),
+         uint_(0x5641e094),
+         uint_(0xe4ab4fd),
+         uint_(0xa53c1ce9),
+         uint_(0xabcf1dba),
+         uint_(0x2677a25a),
+         uint_(0x76cf5efc),
+         uint_(0x2d08247f),
+         uint_(0x815480f1),
+         uint_(0x2d1fa53a),
+         uint_(0xdfe8514c))
+    );
 }
 
+BOOST_AUTO_TEST_CASE(discard_uint)
+{
+    using boost::compute::uint_;
+
+    boost::compute::threefry rng(queue);
+
+    boost::compute::vector<uint_> vector(5, context);
+
+    rng.discard(5, queue);
+    rng.generate(vector.begin(), vector.end(), queue);
+
+    CHECK_RANGE_EQUAL(
+        uint_, 5, vector,
+        (uint_(4161255391),
+         uint_(3922919429),
+         uint_(949333985),
+         uint_(2715962298),
+         uint_(1323567403))
+    );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
